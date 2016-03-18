@@ -13,8 +13,13 @@
 #define PINZ 13 //HIGH as on, LOW as off
 //(PINX, PINY) as emotion command
 //(LOW, LOW) addNote
-//(LOW, HIGH) takeTheNoteOff
-//(HIGH, LOW) overdue
+//(LOW, HIGH) takeANoteOff
+//(HIGH, LOW) noteTooLong
+
+int condition = 0;
+//1 = addNote
+//2 = takeANoteOff
+//3 = noteTooLong
 
 
 
@@ -34,12 +39,10 @@ Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUM_LEDS, PIN, NEO_GRB + NEO_KHZ800)
 // and minimize distance between Arduino and first pixel.  Avoid connecting
 // on a live circuit...if you must, connect GND first.
 
-int condition = 0;
-//1 = addANote
-//2 = takeOffTheNote
-//3 = overdue
 
-boolean onoff = false;
+boolean onoff = false; //false as currently off.
+
+//define color white for different LED modes
 uint32_t whiteGRB = strip.Color(127, 127, 127);
 uint32_t whiteRGBW = strip.Color(0, 0, 0, 255);
 
@@ -49,126 +52,120 @@ void setup() {
    pinMode(PINY, INPUT);
    pinMode(PINZ, INPUT);
    strip.begin();
-   strip.setBrightness(BRIGHTNESS);
-//   strip.begin();
-   strip.show(); // Initialize all pixels to 'off'
-  
+   strip.setBrightness(BRIGHTNESS);//Set up the brightness of
+   strip.show(); // Initialize all pixels to 'off'  
 }
 
 void loop() {
 
-  // Some example procedures showing how to display to the pixels:
-//  colorWipe(strip.Color(255, 0, 0), 50); // Green
-//  colorWipe(strip.Color(0, 0, 0), 50); // Turn off pixel by pixel
-//  delay(1000);
-// reverseColorWipe(strip.Color(0, 255, 0), 50); 
-//  delay(1000);
-//  colorWipe(strip.Color(0, 255, 0), 50); // Green
-//  colorWipe(strip.Color(0, 0, 255), 50); // Blue
-//  delay(1000);
-  Serial.print("current PINZ: ");
+
+  Serial.print(F("current PINZ: "));
   Serial.println(digitalRead(PINZ));
+  
   Serial.print("condition: ");
   Serial.println(condition);
   Serial.print("onoff: ");
   Serial.println(onoff);
 
-//  Serial.println(PINZ);
-//  Serial.println(PINX);
-//  Serial.println(PINY);
 
    if(digitalRead(PINZ)==HIGH){
      emotion();
-     colorWipe(whiteGRB, 50);
+     colorWipe(whiteGRB, 50);//Turn the light back on once finish an action
    }
    else{
-    Serial.println("IT IS OFF");
-     strip.show(); 
-     ColorSet(strip.Color(0, 0, 0));  
+    Serial.println(F("IT IS OFF"));
+     strip.show(); //Turn off the light
+     ColorSet(strip.Color(0, 0, 0)); //Double check 
    }
-//   delay(500);
+
 
 }//end of loop();
+
+
+
+/*
+* A method for handling different condition based on input numeric command 
+* and modify the LED light accordingly. 
+*
+*/
 
 void emotion(){
 //if(digitalRead(PINZ)==HIGH){//digitalRead(PINZ)==HIGH
   //  checkCondition();
   switch(checkCondition()){
-      case 1:{//addANote (blink x2)
+      case 1:{//addNote (blink x2)
         long addNoteStart = millis(); 
-        colorWipe(strip.Color(0, 0, 0), 0);//reset LEDs
-        colorWipe(whiteGRB, 100);
+         colorWipe(strip.Color(0, 0, 0), 0);//reset LEDs
+         colorWipe(whiteGRB, 100);
          blink(whiteGRB, 250);
          blink(whiteGRB, 250);
          blink(whiteGRB, 250);
-        colorWipe(whiteGRB, 100);
-//        colorWipe(strip.Color(0, 0, 0), 0);
-          long addNoteEnd = millis();  
-          Serial.print("addNoteTotalTime: ");
-          Serial.println(addNoteEnd - addNoteStart);
+         colorWipe(whiteGRB, 100);
+        long addNoteEnd = millis();  
+        Serial.print(F("addNoteTotalTime: "));
+        Serial.println(addNoteEnd - addNoteStart);
         
 //        condition =  2;
-       }
-       break;
-       case 2: {//takeOffTheNote (colorWipe and blink)
-      long takeNoteOffStart = millis(); 
+      }
+      break;
+      case 2: {//takeOffTheNote (colorWipe and blink)
+      long takeANoteOffStart = millis(); 
 //      colorWipe(strip.Color(0, 255, 127), 0);//reset LEDs
       theaterChase(strip.Color(0,255,127), 50);
       theaterChase(strip.Color(0,255,127), 50);
-      blink(strip.Color(0,255,127), 100);
-      blink(strip.Color(0,255,127), 100);
-      long takeNoteOffEnd = millis();  
-      Serial.print("takeNoteOffTotalTime: ");
-      Serial.println(takeNoteOffEnd - takeNoteOffStart); 
-//          theaterChase(whiteGRB, 50);
+      blink(strip.Color(0,255,127), 50);
+      blink(strip.Color(0,255,127), 50);
+      long takeANoteOffEnd = millis();  
+      Serial.print(F("takeANoteOffTotalTime: "));
+      Serial.println(takeANoteOffEnd - takeANoteOffStart); 
 //      condition = 3;
       }
       break;
-      case 3:{//overdue (fade/show slowly x2 with red color
+      case 3:{//noteTooLong fade/show slowly x2 with red color
 
-      Serial.println("1. State: overdue;");
-      Serial.println("==========================================");
+      Serial.println(F("1. State: overdue;"));
+      Serial.println(F("=========================================="));
       long totalTimeStart = millis();
-      Serial.print("totalTimeStart: ");
+      Serial.print(F("totalTimeStart: "));
       Serial.println(totalTimeStart);
       
       //action 0 . fade to red -- take about (1000)
       Serial.println("-------------------------");
-      Serial.println("Motion 0: Look = fade from white to red");
+      Serial.println(F("Motion 0: Look = fade from white to red"));
       long timeStart = millis();
-      Serial.print("Motion 0 timeStart: ");
+      Serial.print(F("Motion 0 timeStart: "));
       Serial.println(timeStart);
       
       fade(2);
       
       long timeEnd = millis();
-      Serial.print("Motion 0 timeEnd: ");
+      Serial.print(F("Motion 0 timeEnd: "));
       Serial.println(timeEnd);
-      Serial.print("Motion 0 timeDif: ");
+      Serial.print(F("Motion 0 timeDif: "));
       Serial.println(timeEnd - timeStart);
-      Serial.println("-------------------------");
+      Serial.println(F("-------------------------"));
       
       //2. action 1: (855)
-      Serial.println("-------------------------");
-      Serial.println("Motion 1: raise head to netural position = hold red light");
+      Serial.println(F("-------------------------"));
+      Serial.println(F("Motion 1: raise head to netural position = hold red light"));
       timeStart = millis();
-      Serial.print("Motion 1 timeStart: ");
+      Serial.print(F("Motion 1 timeStart: "));
       Serial.println(timeStart);
        
       delay(500);
 
       timeEnd = millis();
-      Serial.print("Motion 1 timeEnd: ");
+      Serial.print(F("Motion 1 timeEnd: "));
       Serial.println(timeEnd);
-      Serial.print("Motion 1 timeDif: ");
+      Serial.print(F("Motion 1 timeDif: "));
       Serial.println(timeEnd - timeStart);
-      Serial.println("-------------------------");
+      Serial.println(F("-------------------------"));
 
         //3. action 2: 1574
-      Serial.println("-------------------------");
-      Serial.println("Motion 2: neck turn back to neutral = blink twice");
+      Serial.println(F("-------------------------"));
+      Serial.println(F("Motion 2: neck turn back to neutral = blink twice"));
       timeStart = millis();
-      Serial.print("Motion 2 timeStart: ");
+      Serial.print(F("Motion 2 timeStart: "));
       Serial.println(timeStart);
       
       ColorSet(strip.Color(0, 0, 0));
@@ -181,86 +178,120 @@ void emotion(){
       delay(500);
        
       timeEnd = millis();
-      Serial.print("Motion 2 timeEnd: ");
+      Serial.print(F("Motion 2 timeEnd: "));
       Serial.println(timeEnd);
-      Serial.print("Motion 2 timeDif: ");
+      Serial.print(F("Motion 2 timeDif: "));
       Serial.println(timeEnd - timeStart);
-      Serial.println("-------------------------");
+      Serial.println(F("-------------------------"));
        
       //4. action 3: 3266
-      Serial.println("-------------------------");
-      Serial.println("Motion 3: rase head to neutral position = theatre chase + fade back to white");
+      Serial.println(F("-------------------------"));
+      Serial.println(F("Motion 3: rase head to neutral position = theatre chase + fade back to white"));
       timeStart = millis();
-      Serial.print("Motion 3 timeStart: ");
+      Serial.print(F("Motion 3 timeStart: "));
       Serial.println(timeStart);
 
-      theaterChaseTwoColor(whiteGRB,strip.Color(255, 0, 0), 200);
       
       fadeFromRedtoWhite(2);    
-      Serial.print("Motion 3 end: ");
+      Serial.print(F("Motion 3 end: "));
       Serial.println(timeEnd);
-      Serial.print("Motion 3 time difference: ");
+      Serial.print(F("Motion 3 time difference: "));
       Serial.println(timeEnd - timeStart);
-      Serial.println("-------------------------");
+      Serial.println(F("-------------------------"));
        
     //5. total 9059
     long totalTimeEnd = millis();
-    Serial.print("totalTimeEnd: ");
+    Serial.print(F("totalTimeEnd: "));
     Serial.println(totalTimeEnd);
-    Serial.print("totalTimeUsed: ");
+    Serial.print(F("totalTimeUsed: "));
     Serial.println(totalTimeEnd - totalTimeStart);
-    Serial.println("==========================================");    
+    Serial.println(F("=========================================="));    
          
 //    condition = 0;
     }
     break;   
   }
-  condition = 0;
+  condition = 0;//reset condition so that each action will only do it once
 }
 
+
+/*
+* A method for checking the condition from the servo arduino and pass the command to 
+* the emotion handler
+*
+*/
 int checkCondition(){
-//  int signal;
-Serial.print("PINX:");
-Serial.println(digitalRead(PINX));
 
-Serial.print("PINY:");
-Serial.println(digitalRead(PINY));
+	Serial.print("PINX:");
+	Serial.println(digitalRead(PINX));
 
-if((digitalRead(PINX)==HIGH)&&(digitalRead(PINY)==HIGH)){
-    condition = 1; //addNote()
-  }
-  else if((digitalRead(PINX)==LOW)&&(digitalRead(PINY)==HIGH)){
-    condition = 2; //takeTheNoteOff()
-  }
-  else if((digitalRead(PINX)==HIGH)&&(digitalRead(PINY)==LOW)){
-    condition = 3; //overdue()
-  }
-  else{
+	Serial.print("PINY:");
+	Serial.println(digitalRead(PINY));
+
+	if((digitalRead(PINX)==HIGH)&&(digitalRead(PINY)==HIGH)){
+    	condition = 1; //addNote()
+  	}
+  	else if((digitalRead(PINX)==LOW)&&(digitalRead(PINY)==HIGH)){
+    	condition = 2; //takeANoteOff()
+  	}
+  	else if((digitalRead(PINX)==HIGH)&&(digitalRead(PINY)==LOW)){
+    	condition = 3; //noteTooLong()
+  	}
+  	else{
 //    condition = 0;//just turning on
 }
-return condition;
+	return condition;
 }
-// Fill the dots one after the other with a color
-void colorWipe(uint32_t c, uint8_t wait) {
-  for(uint16_t i=0; i<strip.numPixels(); i++) {
-    strip.setPixelColor(i, c);
-    strip.show();
+
+
+/*
+* This method fade all LEDs from white to red, only works on RBG neopixel.
+*/
+void fade(uint8_t wait){
+    //WHITE (127, 127, 127);
+    //RED (255, 0, 0);
+    int r = 127;
+    int g = 127;
+    int b = 127;
+//  long startTime = millis();
+    
+  for (int j=0; j < 127; j++) {   
+    for (int i=0; i <= strip.numPixels() ; i++){           // i is the pixel number. This forloop selects all the pixels between 0 - 50
+      strip.setPixelColor(i,r,g,b);        // the last 3 values are RGB values, red blue and green respectivly. Currently set to off, adjust these to change the color.
+      strip.show();                        //Sends the comand to the pixels to Light up in the specified code above.
+    }
+    r++;
+    g--;
+    b--;
     delay(wait);
   }
 }
 
-void reverseColorWipe(uint32_t c, uint8_t wait) {
-  for(uint16_t i=strip.numPixels(); i>=0; i--){
-    strip.setPixelColor(i, c);
-    strip.show();
+/*
+* This method fade all LEDs from red to white, only works on RBG neopixel.
+*/
+void fadeFromRedtoWhite(uint8_t wait){
+    //WHITE (127, 127, 127);
+    //RED (255, 0, 0);
+    int r = 254;
+    int g = 0;
+    int b = 0;
+
+    
+  for (int j=0; j < 127; j++) {   
+    for (int i=0; i <= strip.numPixels() ; i++){           // i is the pixel number. This forloop selects all the pixels between 0 - 50
+      strip.setPixelColor(i,r,g,b);        // the last 3 values are RGB values, red blue and green respectivly. Currently set to off, adjust these to change the color.
+      strip.show();                        //Sends the comand to the pixels to Light up in the specified code above.
+    }
+    r--;
+    g++;
+    b++;
     delay(wait);
   }
 }
 
 
 //https://diarmuid.ie/blog/pwm-exponential-led-fading-on-arduino-or-other-platforms/
-
-
 // Set all pixels to a color (synchronously)
  void ColorSet(uint32_t color){
    for (int i = 0; i < strip.numPixels(); i++)
@@ -287,10 +318,6 @@ void reverseColorWipe(uint32_t c, uint8_t wait) {
    return color & 0xFF;
  }
 
-
- 
-
-
 /*  Basic Neo-Pixel Code to Blink Neo-Pixles on and off white.
  *   By Richard Clarkson
  *   Be aware that Neo-Pixel Strips require alot of power and may require alterd RGB values or external Power sources.
@@ -311,6 +338,27 @@ void reverseColorWipe(uint32_t c, uint8_t wait) {
   delay (wait);     
 
 }
+
+
+//-------------THE FOLLOWING METHODS ARE FROM ADAFRUIT NEOPIXEL LIBRARY STANDTEST EXAMPLE ---------//
+
+// Fill the dots one after the other with a color
+void colorWipe(uint32_t c, uint8_t wait) {
+  for(uint16_t i=0; i<strip.numPixels(); i++) {
+    strip.setPixelColor(i, c);
+    strip.show();
+    delay(wait);
+  }
+}
+
+void reverseColorWipe(uint32_t c, uint8_t wait) {
+  for(uint16_t i=strip.numPixels(); i>=0; i--){
+    strip.setPixelColor(i, c);
+    strip.show();
+    delay(wait);
+  }
+}
+
 void rainbow(uint8_t wait) {
   uint16_t i, j;
 
@@ -392,45 +440,7 @@ void theaterChaseRainbow(uint8_t wait) {
   }
 }
 
-void fade(uint8_t wait){
-    //WHITE (127, 127, 127);
-    //RED (255, 0, 0);
-    int r = 127;
-    int g = 127;
-    int b = 127;
-//  long startTime = millis();
-    
-  for (int j=0; j < 127; j++) {   
-    for (int i=0; i <= strip.numPixels() ; i++){           // i is the pixel number. This forloop selects all the pixels between 0 - 50
-      strip.setPixelColor(i,r,g,b);        // the last 3 values are RGB values, red blue and green respectivly. Currently set to off, adjust these to change the color.
-      strip.show();                        //Sends the comand to the pixels to Light up in the specified code above.
-    }
-    r++;
-    g--;
-    b--;
-    delay(wait);
-  }
-}
 
-void fadeFromRedtoWhite(uint8_t wait){
-    //WHITE (127, 127, 127);
-    //RED (255, 0, 0);
-    int r = 254;
-    int g = 0;
-    int b = 0;
-
-    
-  for (int j=0; j < 127; j++) {   
-    for (int i=0; i <= strip.numPixels() ; i++){           // i is the pixel number. This forloop selects all the pixels between 0 - 50
-      strip.setPixelColor(i,r,g,b);        // the last 3 values are RGB values, red blue and green respectivly. Currently set to off, adjust these to change the color.
-      strip.show();                        //Sends the comand to the pixels to Light up in the specified code above.
-    }
-    r--;
-    g++;
-    b++;
-    delay(wait);
-  }
-}
 
 
 

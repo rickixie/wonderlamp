@@ -9,8 +9,8 @@
 #define PINZ 13//Low as lights off, High as lights on
 //digitalLy write (PINX, PINY) to define type of emotion
 // (LOW, LOW) addNote
-// (LOW, HIGH) takeOffTheNote
-// (HIGH, LOW) overdue
+// (LOW, HIGH) takeANoteOff
+// (HIGH, LOW) noteTooLong
 // (HIGH, HIGH)..
 
 //2. Set up IR sensor parameter
@@ -20,55 +20,60 @@ unsigned long sensorReading;
 unsigned long timeNoteOn;
 unsigned long timeCheck;
 
-
+boolean noteOn = false;
 
 
 //3. Set up global condition
-#define btnOnOffPin 6
+#define btnOnOffPin 6 //use for turn on and off the motor and light
 Button btnOnOff (btnOnOffPin);
 
-//#define btn2 7
-//int buttonState = 0;
 
-boolean firstTimeOn = true;
+boolean firstTimeOn = true; //was used for resetPosition to distinct between first time turn on the motor vs. reset position from other action
 boolean onOff = false;
-int condition = -1;//netural
-boolean noteOn = false;
-boolean noteIsOverTime = false;
-
-
-
-//4. Set up servo parameter
-boolean notTakeANoteOff = false;
-int steps;//calculating the absolute value between start angle and end angle 
 
 
 
 //1 addNote
 //2 TakeANoteOff
 //3 Overdue
-unsigned long timeStart;
-unsigned long timeEnd;
-unsigned long timeDif;
+int condition = -1;//netural
 
+
+boolean noteIsOverTime = false;
+
+
+
+//4. Set up servo parameters
+// boolean notTakeANoteOff = false;
+int steps;//calculating the absolute value between the start angle and end angle 
 Servo h;//head servo
 Servo m;//middle servo
 Servo b;//bottom servo
 
+//used to store array that allows 2 servos to move simultaneously 
 int tempArray[180];
 int tempArray1[180];
 int tempArray2[180];
 
+
+unsigned long timeStart;
+unsigned long timeEnd;
+unsigned long timeDif;
+
+
+
 void setup() {
   Serial.begin(9600);
+
 //  h.attach(2);
 //  m.attach(3);
 //  b.attach(4);
 //  resetPosition();
 
   pinMode(btnOnOffPin, INPUT);
+
   //Serial.println("first set up by turn to off position");
-//  turnOff();
+  //  turnOff();
 
   //Set up pins for arduino communication
   pinMode(PINX, OUTPUT);
@@ -87,38 +92,33 @@ void setup() {
 }
 
 void loop() {
-    //Turn on the sensor
+  //0. Turn on the LED and read the sensor
   digitalWrite(led, HIGH); //turn on IR light
   sensorReading = analogRead(sensor);//read IR 
-  Serial.println("---------+++++-----------");
+  Serial.println(F("---------+++++-----------"));
   Serial.print(F("sensor reading: "));
   Serial.println(sensorReading);
-  Serial.println("---------+++++-----------");
+  Serial.println(F("---------+++++-----------"));
   boolean testUserAttachANote = userAttachANote();
-  Serial.println("userAttachANote() status:");
+  Serial.print(F("userAttachANote() status:"));
   Serial.println(testUserAttachANote);
 
-  sensorReading = analogRead(sensor);//read IR sensor
 
-//
-//  //2. Special Case: Activate the System
-//  Serial.println("The light is currently on: ");
-////
   int btnOnAction = btnOnOff.checkButtonAction();
-//  buttonState = digitalRead(btn2);
+
   Serial.print(F("buttonRead: "));
   Serial.println(btnOnAction);
-//
-//
+
+  //0. Turn on the lamp if it was previous Off and vice versa
    if(!onOff&&(btnOnAction == Button::HELD)) {////  if(buttonState==HIGH&&!onOff)
        turnOn();
     }
   else if((btnOnAction == Button::HELD)&&onOff){
     turnOff();
    }
-
-  
+  Serial.print(F("System is currently on: "));
   Serial.println(onOff);
+
   //1. Regular interaction during loop
   if(onOff){
     emotion();
@@ -126,57 +126,77 @@ void loop() {
   else{//
     digitalWrite(PINZ, LOW);
   }
-//  delay(500);
 
-////
-////    digitalWrite(PINZ, HIGH);
-////    digitalWrite(PINX, HIGH);
-////    digitalWrite(PINY, LOW);
-   delay(500);
+   delay(500); 
+
+
+
+   
 }//END OF LOOP
 
 
 void emotion(){
   //2. Regular interaction during loop
 //  if(onOff){//a button for turn on the system and turn off the system
-    digitalWrite(PINZ, HIGH);//turn on the light
+    digitalWrite(PINZ, HIGH);//turn on the light as long as it is on
+    
     Serial.println(F("---------START OF SWITCH CONDITION------"));
-    //a method to check 3 buttons that will control corresponding condition 
+ 
     switch(checkCondition2()){//TODO: change to checkCondition2();   
       case 1:{
           servoStart(); 
+          digitalWrite(PINX, HIGH);
+          digitalWrite(PINY, HIGH);
           long addNoteStart = millis();  
           addNote();
           long addNoteEnd = millis();  
           Serial.print(F("addNoteTotalTime: "));
-          Serial.println(addNoteEnd - addNoteStart);
-          digitalWrite(PINX, HIGH);
-          digitalWrite(PINY, HIGH);
+          Serial.println(addNoteEnd - addNoteStart);        
           resetPosition();
       }
       break;
       case 2: {
           servoStart();
-          long takeNoteOffStart = millis(); 
-          takeANoteOff();
-          long takeNoteOffEnd = millis();  
-          Serial.print(F("takeNoteOffTotalTime: "));
-          Serial.println(takeNoteOffEnd - takeNoteOffStart); 
           digitalWrite(PINX, LOW);
           digitalWrite(PINY, HIGH);   
+          long takeANoteOffStart = millis(); 
+          takeANoteOff();
+          long takeANoteOffEnd = millis();  
+          Serial.print(F("takeANoteOffTotalTime: "));
+          Serial.println(takeANoteOffEnd - takeANoteOffStart); 
           resetPosition();
       }
       break;
-      case 3: {
-          long noteTooLongStart = millis();   
-      servoStart();
+      case 3: {  
+       servoStart();
        digitalWrite(PINX, HIGH);
        digitalWrite(PINY, LOW); 
-       noteTooLong();//ovedue()
+      long noteTooLongStart = millis();   
+       noteTooLong();
        long noteTooLongEnd = millis();  
        Serial.print(F("noteTooLongTotalTime: "));
        Serial.println(noteTooLongEnd - noteTooLongStart);
        resetPosition();
+      }
+      break;
+      case 4: {
+        nod();
+         resetPosition();
+      }
+      break;
+      case 5: {
+          happynod();
+         resetPosition();
+      }
+      break;
+      case 6: {
+        shakeHead();
+         resetPosition();
+      }
+      break;
+      case 7: {
+        thankyou();
+        resetPosition();
       }
       break;
 //      default:
@@ -186,6 +206,7 @@ void emotion(){
 //     resetPosition();
     Serial.println(F("---------END OF SWITCH CONDITION------"));
    
+   //reset the light and servo to neutral
     digitalWrite(PINX, LOW);
     digitalWrite(PINY, LOW);
     condition = -1;
@@ -195,8 +216,9 @@ void emotion(){
 
  /* 
   * Reset the lamp position to initial 
-  * "ON" position from current position for all servos
+  * "ON" position from current position for all servos.
   *
+  *  The method also print the prev and after position for trouble shooting.
   */
 void resetPosition(){
   servoStart();
@@ -212,21 +234,21 @@ void resetPosition(){
   long resetPositionStartTime = millis(); 
      
 //  if(!firstTimeOn){
-  Serial.println(F("go through this if not first time turning on"));  
+//  Serial.println(F("go through this if not first time turning on"));  
     printMoves(b, b.read(), 50, 20);//reset the bottom position
     printMoves(m, m.read(), 80, 20);//reset the middle position 
     printMoves(h, h.read(), 100, 20);//rest the head position
 //  }
 //  else{
 // Serial.println(F("go through this if this is first time to turn on"));    
+//    h.write(100);
+//     m.write(80);
 //    b.write(50);
+//    printMoves(b, b.read(), 50, 20);
 //    m.write(80);
 //    h.write(100);
 //  }   
        
-//    printMoves(b, b.read(), 100, 20);//reset the bottom position
-//    printMoves(m, m.read(), 80, 20);//reset the middle position 
-//    printMoves(h, h.read(), 135, 20);//rest the head position
  
   servoStop(); 
   long resetPositionEndTime = millis();  
@@ -239,16 +261,10 @@ void resetPosition(){
   Serial.println(m.read());
   Serial.print(F("b after angle: "));
   Serial.println(b.read());
-//
-// 
-//  Serial.print(F("resetPositionTotalTime: "));
-//  Serial.println(resetPositionEndTime - resetPositionStartTime);
-//  Serial.println(F("resetPosition END"));
-//  Serial.println(F("-----------------------"));
-
 }
 
-
+//A method used for wizard of oz or debugging emotion and servo movement
+//take user input from serial and pass on to the emotion method.
 int checkCondition(){
   Serial.println(F("Enter condition: "));
   while(Serial.available ()==0){
@@ -259,22 +275,15 @@ int checkCondition(){
   condition = input;
   Serial.print(F("Set condition: "));
   Serial.println(condition);
-  //check add note, set condition = 1;
-
-  //check remove note, set condition = 2;
-
-  //check timer for overdue, set condition = 3; 
   
   return condition;
 }
 
 
+//A method interact with IR sensor reading
 int checkCondition2(){
   //if user attach a note --> start recording time
 
-
-  //1. a method for turning on light and return 0
-  //2. a method for checking adding note and checking timer, and taking off note
   
   //1. If the light was off, awake the lamp to netural position
    if (userAttachANote()){
@@ -294,18 +303,45 @@ int checkCondition2(){
   }
   
 //lamp take actions when note stays on for too long
-// continue doin it every 10s(60s for user test?), until note is taken off
+// continue doing it every 10s(60s for user test?), until note is taken off
   noteIsOverTime = overTime(); 
   Serial.print(F("Check boolean noteIsOvertime state: "));
   Serial.println(noteIsOverTime);
   if(noteOn&&noteIsOverTime&&onOff){
   Serial.println(F("-----IS TAKING MORE TIME ------")); 
-//   noteIsOvertime = overTime(); 
+
  
     return 3;//NoteTooLong(); 
   }
 }
 
+boolean overTime(){
+  long currentTime = millis();
+  timeCheck = currentTime-timeNoteOn;
+  Serial.print("timeCheck: ");
+  Serial.println(timeCheck);
+  if(timeCheck > 17000){//10 sec
+    Serial.println(F("overTime is true."));
+    //timer reset
+    timeNoteOn = millis();   
+    return true;
+  }  
+  return false; 
+}
+
+boolean userAttachANote(){
+  //sensor reading would be less than 1000 if the user attach a note
+  boolean sensorOn = false;
+  if(sensorReading < 1000){
+    sensorOn = true;
+  }
+  return (sensorOn&&!noteOn);
+}
+
+boolean userTakeANoteOff(){
+   //sensor reading would be more than 1000 if the user take a note off
+   return ((sensorReading > 1000)&&noteOn&&onOff);
+}
 
 void servoStop(){
   h.detach();
@@ -318,20 +354,19 @@ void servoStart(){
   b.attach(4);
 }
 
-void turnOn(){//GO TO NEUTRAL POSITION WHEN
+void turnOn(){//GO TO NEUTRAL POSITION
   onOff = true;
   resetPosition(); 
   digitalWrite(PINZ, HIGH);
   firstTimeOn = false;
-  Serial.println(F("~~~~turnOn method~~~~"));
-   
+  Serial.println(F("~~~~turnOn method~~~~"));   
 }
 
 void turnOff(){
   //return to OFF position from current angle
   Serial.println(F("~~~~turnOff Method~~~~"));
   servoStart();
-//  h.write(175);
+//  h.write(165);
 //  m.write(80);
 //  b.write(100);
   printMoves(h, h.read(), 165, 10);
@@ -344,6 +379,7 @@ void turnOff(){
   firstTimeOn = true;
 }
 
+////////////////////////THE FOLLOWING METHODS ARE FOR SERVO MOVEMENT//////////////////////////
 void nod(){ 
   printMoves(h, h.read(), 100, 10); 
   printMoves(h, h.read(), 165, 10); 
@@ -351,9 +387,6 @@ void nod(){
   printMoves(h, h.read(), 165, 10); 
   h.detach(); 
 }
-
-
-
 
 void happynod(){
   printMoves(h, h.read(), 15, 10); 
@@ -393,34 +426,33 @@ void addNote(){
   Serial.println(F("addNote(), servoStop() END"));
   Serial.println(F("-----------------------------"));
 
- 
-//  resetPosition();
-  // printMoves(m, m.read(), 80, 15);
 }
 
+
+
+void thankyou(){
+    printMoves(b, b.read(), 30, 20);
+//  b.write(20);
+//  b.detach();
+  
+  happynod();
+//  b.attach(4);
+ 
+  printMoves(b, b.read(), 110, 20);
+//  b.write(110);
+//  b.detach();
+//  b.detach();
+
+  happynod();
+//  m.detach();
+//  servoStop();
+//  delay(500);
+}
 void takeANoteOff(){
 
   digitalWrite(PINX, LOW);
   digitalWrite(PINY, HIGH);
   
-
-//  printMoves(b, b.read(), 40, 20);
-////  b.write(20);
-//  b.detach();
-//
-////  b.detach();
-//  
-//  happynod();
-//  b.attach(4);
-//  printMoves(b, b.read(), 110, 20);
-////  b.write(110);
-//  b.detach();
-////  b.detach();
-//
-//  happynod();
-//  m.detach();
-//  servoStop();
-//  delay(500);
 
 ////OLD DANCING 
 //  takeANoteOffHelper(m.read(), 100, b.read(), 30, 30);//was 12
@@ -432,9 +464,6 @@ void takeANoteOff(){
 //  takeANoteOffHelper(100, 80, 30, 50, 15);//was 12
 
 
-  int mInt = 80;
-  int bInt = 50;
-  
   for(int i = 0; i<7; i++){
     m.write(m.read()+i+1);//from 80-100
     b.write(b.read()-i-1);//from 50-30
@@ -483,13 +512,8 @@ void takeANoteOff(){
     b.write(b.read()+i+1);//from 30-50
     delay(50);
   }
-// delay(30);
 
 
-
-  
-  
-//  resetPosition();
 }
 
 void takeANoteOffHelper(int m1, int m2, int b1, int b2, int rate){
@@ -505,7 +529,7 @@ void takeANoteOffHelper(int m1, int m2, int b1, int b2, int rate){
   Serial.println(F("tempArray1:"));
   Serial.println((int)tempArray1);
   
-  Serial.println(F("----store h first---")); 
+  Serial.println(F("----store b second---")); 
   printMoves(b, b1, b2, 1);
   memcpy(tempArray2, tempArray, 180);
   Serial.println(F("tempArray2:"));
@@ -520,7 +544,7 @@ void takeANoteOffHelper(int m1, int m2, int b1, int b2, int rate){
       b.write(tempArray2[i]);
       delay(50);  
   }
-//  servoStop();
+
   
 }
 
@@ -533,16 +557,12 @@ void noteTooLong(){
   digitalWrite(PINX, HIGH);
   digitalWrite(PINY, LOW);
   
-  delay(1000);
+  delay(3000);
   printMoves(m, m.read(),80, 15);//turn back
 
   shakeHead(); 
-  //resetPosition();
-//  printMoves(m, m.read(), 90, 15); //turn back to neutral
   
 }
-
-
 
 void sweep(Servo s1) {
   for (int pos = 15; pos <= 170; pos += 1) { // goes from 0 degrees to 180 degrees
@@ -554,37 +574,9 @@ void sweep(Servo s1) {
     s1.write(pos);              // tell servo to go to position in variable 'pos'
     delay(15);                       // waits 15ms for the servo to reach the position
   }
-  // test();
 }
 
 
-boolean overTime(){
-  long currentTime = millis();
-  timeCheck = currentTime-timeNoteOn;
-  Serial.print("timeCheck: ");
-  Serial.println(timeCheck);
-  if(timeCheck > 17000){//10 sec
-    Serial.println(F("overTime is true."));
-    //timer reset
-    timeNoteOn = millis();   
-    return true;
-  }  
-  return false; 
-}
-
-boolean userAttachANote(){
-  //sensor reading would be less than 1000 if the user attach a note
-  boolean sensorOn = false;
-  if(sensorReading < 1000){
-    sensorOn = true;
-  }
-  return (sensorOn&&!noteOn);
-}
-
-boolean userTakeANoteOff(){
-   //sensor reading would be more than 1000 if the user take a note off
-   return ((sensorReading > 1000)&&noteOn&&onOff);
-}
 
 void printMoves(Servo whichServo, int startAngle, int endAngle, int rate) {
   servoStart();
@@ -607,7 +599,7 @@ void printMoves(Servo whichServo, int startAngle, int endAngle, int rate) {
     tempArray[i] = result;//COMMENT OUT
 
     
-    if((condition!=2)){ //(condition==2&&notTakeANoteOff)//COMMENT OUT
+    if((condition!=2)){//COMMENT OUT
       whichServo.write(result);
 //      whichServo.detach(); //COMMENT OUT
       delay(rate);
